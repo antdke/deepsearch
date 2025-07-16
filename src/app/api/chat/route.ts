@@ -4,6 +4,7 @@ import { auth } from "~/server/auth";
 import { model } from "~/models";
 import { z } from "zod";
 import { searchSerper } from "~/serper";
+import { getRequestCountToday, insertRequest } from "~/server/db/queries";
 
 export const maxDuration = 60;
 
@@ -16,6 +17,19 @@ export async function POST(request: Request) {
   const body = (await request.json()) as {
     messages: Array<Message>;
   };
+
+  const userId = session.user.id;
+  const isAdmin = session.user.isAdmin;
+
+  if (!isAdmin) {
+    const count = await getRequestCountToday(userId);
+    const LIMIT = 1;
+    if (count >= LIMIT) {
+      return new Response("Too Many Requests", { status: 429 });
+    }
+  }
+
+  await insertRequest(userId);
 
   return createDataStreamResponse({
     execute: async (dataStream) => {
