@@ -133,6 +133,50 @@ export const userRequestsRelations = relations(userRequests, ({ one }) => ({
   user: one(users, { fields: [userRequests.userId], references: [users.id] }),
 }));
 
+export const chats = createTable(
+  "chat",
+  {
+    id: varchar("id", { length: 255 }).primaryKey().notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    userId: varchar("user_id", { length: 255 })
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => ({
+    userIdIdx: index("chat_user_id_idx").on(table.userId),
+  }),
+);
+
+export const chatsRelations = relations(chats, ({ many }) => ({
+  messages: many(messages),
+}));
+
+export const messages = createTable(
+  "message",
+  {
+    id: varchar("id", { length: 255 }).primaryKey().notNull(),
+    chatId: varchar("chat_id", { length: 255 })
+      .notNull()
+      .references(() => chats.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 50 }).notNull(),
+    parts: json("parts").notNull(),
+    order: integer("order").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => ({
+    chatIdIdx: index("message_chat_id_idx").on(table.chatId),
+  }),
+);
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  chat: one(chats, { fields: [messages.chatId], references: [chats.id] }),
+}));
+
 export declare namespace DB {
   export type User = InferSelectModel<typeof users>;
   export type NewUser = InferInsertModel<typeof users>;
@@ -150,4 +194,10 @@ export declare namespace DB {
 
   export type UserRequest = InferSelectModel<typeof userRequests>;
   export type NewUserRequest = InferInsertModel<typeof userRequests>;
+
+  export type Chat = InferSelectModel<typeof chats>;
+  export type NewChat = InferInsertModel<typeof chats>;
+
+  export type DBMessage = InferSelectModel<typeof messages>;
+  export type NewDBMessage = InferInsertModel<typeof messages>;
 }
