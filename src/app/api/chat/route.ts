@@ -5,6 +5,8 @@ import { model } from "~/models";
 import { z } from "zod";
 import { searchSerper } from "~/serper";
 import { getRequestCountToday, insertRequest } from "~/server/db/queries";
+import { appendResponseMessages } from "ai";
+import { upsertChat, getChat } from "~/server/db/queries";
 
 export const maxDuration = 60;
 
@@ -14,12 +16,11 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const body = (await request.json()) as {
-    messages: Array<Message>;
-  };
-
   const userId = session.user.id;
   const isAdmin = session.user.isAdmin;
+
+  const { messages, chatId }: { messages: Message[]; chatId?: string } =
+    await request.json();
 
   if (!isAdmin) {
     const count = await getRequestCountToday(userId);
@@ -31,10 +32,18 @@ export async function POST(request: Request) {
 
   await insertRequest(userId);
 
+  let currentChatId = chatId ?? crypto.randomUUID();
+  let title = "New Chat";
+
+  if (!chatId) {
+    const userMessageContent =
+      messages.find((m) => m.role === "user")?.content ?? "New Chat";
+    title = userMessageContent.slice(0, 100);
+    await upsertChat({ userId, chatId: currentChatId, title, messages });
+  }
+
   return createDataStreamResponse({
     execute: async (dataStream) => {
-      const { messages } = body;
-
       const result = streamText({
         model,
         messages,
@@ -59,6 +68,27 @@ export async function POST(request: Request) {
           },
         },
         maxSteps: 10,
+        onFinish: async ({ response }) => {
+          const responseMessages = response.messages ?? [];
+          const updatedMessages = appendResponseMessages({
+            messages,
+            responseMessages,
+          });
+
+          if (chatId) {
+            const existingChat = await getChat(chatId!, userId);
+            if (existingChat) {
+              title = existingChat.title ?? "Chat With AI";
+            }
+          }
+
+          await upsertChat({
+            userId,
+            chatId: currentChatId,
+            title,
+            messages: updatedMessages,
+          });
+        },
       });
 
       result.mergeIntoDataStream(dataStream);

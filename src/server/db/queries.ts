@@ -53,7 +53,7 @@ export const upsertChat = async (opts: {
   }
 
   const inserts = opts.messages.map((m, index) => ({
-    id: m.id,
+    id: m.id ?? crypto.randomUUID(),
     chatId: opts.chatId,
     role: m.role,
     parts: m.parts,
