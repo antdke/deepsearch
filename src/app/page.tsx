@@ -3,6 +3,13 @@ import Link from "next/link";
 import { auth } from "~/server/auth/index.ts";
 import { ChatPage } from "./chat.tsx";
 import { AuthButton } from "../components/auth-button.tsx";
+import { getChats, getChat } from "~/server/db/queries";
+import type { Message } from "ai";
+
+interface Chat {
+  id: string;
+  title: string;
+}
 
 const chats = [
   {
@@ -16,12 +23,26 @@ const activeChatId = "1";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ chatId?: string }>;
+  searchParams: Promise<{ id?: string }>;
 }) {
-  const { chatId } = await searchParams;
+  const { id } = await searchParams;
   const session = await auth();
   const userName = session?.user?.name ?? "Guest";
   const isAuthenticated = !!session?.user;
+  const userId = session?.user?.id;
+
+  let chats: Chat[] = [];
+  if (userId) {
+    chats = (await getChats(userId)) as Chat[];
+  }
+
+  let initialMessages: Message[] = [];
+  if (id && userId) {
+    const selectedChat = await getChat(id, userId);
+    if (selectedChat) {
+      initialMessages = selectedChat.messages;
+    }
+  }
 
   return (
     <div className="flex h-screen bg-gray-950">
@@ -46,9 +67,9 @@ export default async function HomePage({
             chats.map((chat) => (
               <div key={chat.id} className="flex items-center gap-2">
                 <Link
-                  href={`/?chatId=${chat.id}`}
+                  href={`/?id=${chat.id}`}
                   className={`flex-1 rounded-lg p-3 text-left text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    chat.id === activeChatId
+                    chat.id === id
                       ? "bg-gray-700"
                       : "hover:bg-gray-750 bg-gray-800"
                   }`}
@@ -76,7 +97,8 @@ export default async function HomePage({
       <ChatPage
         userName={userName}
         isAuthenticated={isAuthenticated}
-        chatId={chatId}
+        id={id}
+        initialMessages={initialMessages}
       />
     </div>
   );

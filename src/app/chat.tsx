@@ -7,18 +7,25 @@ import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isNewChatCreated } from "~/utils";
+import type { Message } from "ai";
 
 interface ChatProps {
   userName: string;
   isAuthenticated: boolean;
-  chatId?: string;
+  id?: string;
+  initialMessages?: Message[];
 }
 
-export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
+export const ChatPage = ({
+  userName,
+  isAuthenticated,
+  id,
+  initialMessages,
+}: ChatProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
 
   const { messages, input, handleInputChange, handleSubmit, status, data } =
-    useChat({ body: { chatId } });
+    useChat({ initialMessages, body: { id } });
   const isLoading = status === "submitted" || status === "streaming";
 
   const router = useRouter();
