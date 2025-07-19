@@ -109,7 +109,7 @@ export const ChatMessage = ({ parts, role, userName }: ChatMessageProps) => {
   const isAI = role === "assistant";
 
   return (
-    <div className="mb-6">
+    <div>
       <div
         className={`rounded-lg p-4 ${
           isAI ? "bg-gray-800 text-gray-300" : "bg-gray-900 text-gray-300"
