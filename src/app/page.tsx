@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { auth } from "~/server/auth/index.ts";
@@ -23,9 +24,9 @@ const activeChatId = "1";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{ chatId?: string }>;
 }) {
-  const { id } = await searchParams;
+  const { chatId: chatIdFromUrl } = await searchParams;
   const session = await auth();
   const userName = session?.user?.name ?? "Guest";
   const isAuthenticated = !!session?.user;
@@ -36,9 +37,11 @@ export default async function HomePage({
     chats = (await getChats(userId)) as Chat[];
   }
 
+  const chatId = chatIdFromUrl ?? randomUUID();
+
   let initialMessages: Message[] = [];
-  if (id && userId) {
-    const selectedChat = await getChat(id, userId);
+  if (chatIdFromUrl && userId) {
+    const selectedChat = await getChat(chatIdFromUrl, userId);
     if (selectedChat) {
       initialMessages = selectedChat.messages;
     }
@@ -67,9 +70,9 @@ export default async function HomePage({
             chats.map((chat) => (
               <div key={chat.id} className="flex items-center gap-2">
                 <Link
-                  href={`/?id=${chat.id}`}
+                  href={`/?chatId=${chat.id}`}
                   className={`flex-1 rounded-lg p-3 text-left text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    chat.id === id
+                    chat.id === chatIdFromUrl
                       ? "bg-gray-700"
                       : "hover:bg-gray-750 bg-gray-800"
                   }`}
@@ -95,9 +98,11 @@ export default async function HomePage({
       </div>
 
       <ChatPage
+        key={chatId}
         userName={userName}
         isAuthenticated={isAuthenticated}
-        id={id}
+        chatId={chatId}
+        isNewChat={!chatIdFromUrl}
         initialMessages={initialMessages}
       />
     </div>

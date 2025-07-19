@@ -12,20 +12,22 @@ import type { Message } from "ai";
 interface ChatProps {
   userName: string;
   isAuthenticated: boolean;
-  id?: string;
+  chatId: string;
+  isNewChat: boolean;
   initialMessages?: Message[];
 }
 
 export const ChatPage = ({
   userName,
   isAuthenticated,
-  id,
+  chatId,
+  isNewChat,
   initialMessages,
 }: ChatProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
 
   const { messages, input, handleInputChange, handleSubmit, status, data } =
-    useChat({ initialMessages, body: { id } });
+    useChat({ initialMessages, body: { chatId, isNewChat } });
   const isLoading = status === "submitted" || status === "streaming";
 
   const router = useRouter();

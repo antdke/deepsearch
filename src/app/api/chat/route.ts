@@ -19,7 +19,11 @@ export async function POST(request: Request) {
   const userId = session.user.id;
   const isAdmin = session.user.isAdmin;
 
-  const { messages, chatId }: { messages: Message[]; chatId?: string } =
+  const {
+    messages,
+    chatId,
+    isNewChat,
+  }: { messages: Message[]; chatId: string; isNewChat?: boolean } =
     await request.json();
 
   if (!isAdmin) {
@@ -32,10 +36,10 @@ export async function POST(request: Request) {
 
   await insertRequest(userId);
 
-  let currentChatId = chatId ?? crypto.randomUUID();
+  let currentChatId = chatId;
   let title = "New Chat";
 
-  if (!chatId) {
+  if (isNewChat) {
     const userMessageContent =
       messages.find((m) => m.role === "user")?.content ?? "New Chat";
     title = userMessageContent.slice(0, 100);
@@ -44,7 +48,7 @@ export async function POST(request: Request) {
 
   return createDataStreamResponse({
     execute: async (dataStream) => {
-      if (!chatId) {
+      if (isNewChat) {
         dataStream.writeData({
           type: "NEW_CHAT_CREATED",
           chatId: currentChatId,
@@ -81,8 +85,8 @@ export async function POST(request: Request) {
             responseMessages,
           });
 
-          if (chatId) {
-            const existingChat = await getChat(chatId!, userId);
+          if (!isNewChat) {
+            const existingChat = await getChat(currentChatId, userId);
             if (existingChat) {
               title = existingChat.title ?? "Chat With AI";
             }
