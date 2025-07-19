@@ -78,6 +78,7 @@ export async function POST(request: Request) {
           },
         },
         maxSteps: 10,
+        experimental_telemetry: { isEnabled: true },
         onFinish: async ({ response }) => {
           const responseMessages = response.messages ?? [];
           const updatedMessages = appendResponseMessages({
