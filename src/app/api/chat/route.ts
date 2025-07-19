@@ -9,6 +9,8 @@ import { appendResponseMessages } from "ai";
 import { upsertChat, getChat } from "~/server/db/queries";
 import { Langfuse } from "langfuse";
 import { env } from "~/env";
+import { bulkCrawlWebsites, type BulkCrawlResponse } from "~/scraper";
+import { cacheWithRedis } from "~/server/redis/redis";
 
 export const maxDuration = 60;
 
@@ -45,6 +47,13 @@ export async function POST(request: Request) {
 
   await insertRequest(userId);
 
+  const scrapePages = cacheWithRedis(
+    "scrapePages",
+    async (urls: string[]): Promise<BulkCrawlResponse> => {
+      return bulkCrawlWebsites({ urls });
+    },
+  );
+
   let currentChatId = chatId;
   const trace = langfuse.trace({
     sessionId: currentChatId,
@@ -71,7 +80,7 @@ export async function POST(request: Request) {
       const result = streamText({
         model,
         messages,
-        system: `You are a helpful AI assistant with access to a 'searchWeb' tool that allows you to search the internet for up-to-date information. For every user query, first use the searchWeb tool to gather relevant information. Then, formulate your response based on the search results. Always cite your sources using inline markdown links, like [source](link). Provide accurate and helpful answers.`,
+        system: `You are a helpful AI assistant with access to a 'searchWeb' tool that allows you to search the internet for up-to-date information. For every user query, first use the searchWeb tool to gather relevant information. Then, ALWAYS use the 'scrapePages' tool to scrape the full content from multiple relevant URLs returned by the search (THIS IS IMPORTANT). Formulate your response based on the scraped content and search results. Always cite your sources using inline markdown links, like [source](link). Provide accurate and helpful answers.`,
         tools: {
           searchWeb: {
             parameters: z.object({
@@ -88,6 +97,16 @@ export async function POST(request: Request) {
                 link: result.link,
                 snippet: result.snippet,
               }));
+            },
+          },
+          scrapePages: {
+            parameters: z.object({
+              urls: z.array(
+                z.string().describe("The URLs to scrape for full content"),
+              ),
+            }),
+            execute: async ({ urls }) => {
+              return scrapePages(urls);
             },
           },
         },
