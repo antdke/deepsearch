@@ -77,10 +77,14 @@ export async function POST(request: Request) {
           chatId: currentChatId,
         });
       }
+      const currentDate = new Date().toISOString().split("T")[0];
+
       const result = streamText({
         model,
         messages,
-        system: `You are a helpful AI assistant with access to a 'searchWeb' tool that allows you to search the internet for up-to-date information. For every user query, first use the searchWeb tool to gather relevant information. Then, ALWAYS use the 'scrapePages' tool to scrape the full content from multiple relevant URLs returned by the search (THIS IS IMPORTANT). Formulate your response based on the scraped content and search results. Always cite your sources using inline markdown links, like [source](link). Provide accurate and helpful answers.`,
+        system: `You are a helpful AI assistant with access to a 'searchWeb' tool that allows you to search the internet for up-to-date information. For every user query, first use the searchWeb tool to gather relevant information. Then, ALWAYS use the 'scrapePages' tool to scrape the full content from multiple relevant URLs returned by the search (THIS IS IMPORTANT). Formulate your response based on the scraped content and search results. Always cite your sources using inline markdown links, like [source](link). Provide accurate and helpful answers.
+
+The current date is ${currentDate}. When the user asks for up-to-date information, incorporate this date into your search queries to ensure timeliness. For example, if asking about recent events, include the year or date in the query.`,
         tools: {
           searchWeb: {
             parameters: z.object({
@@ -96,6 +100,7 @@ export async function POST(request: Request) {
                 title: result.title,
                 link: result.link,
                 snippet: result.snippet,
+                date: result.date ?? "unknown",
               }));
             },
           },
