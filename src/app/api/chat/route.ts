@@ -7,8 +7,17 @@ import { searchSerper } from "~/serper";
 import { getRequestCountToday, insertRequest } from "~/server/db/queries";
 import { appendResponseMessages } from "ai";
 import { upsertChat, getChat } from "~/server/db/queries";
+import { Langfuse } from "langfuse";
+import { env } from "~/env";
 
 export const maxDuration = 60;
+
+const langfuse = new Langfuse({
+  secretKey: env.LANGFUSE_SECRET_KEY,
+  publicKey: env.LANGFUSE_PUBLIC_KEY,
+  baseUrl: env.LANGFUSE_BASEURL,
+  environment: env.NODE_ENV,
+});
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -37,6 +46,11 @@ export async function POST(request: Request) {
   await insertRequest(userId);
 
   let currentChatId = chatId;
+  const trace = langfuse.trace({
+    sessionId: currentChatId,
+    name: "chat",
+    userId: session.user.id,
+  });
   let title = "New Chat";
 
   if (isNewChat) {
@@ -78,7 +92,13 @@ export async function POST(request: Request) {
           },
         },
         maxSteps: 10,
-        experimental_telemetry: { isEnabled: true },
+        experimental_telemetry: {
+          isEnabled: true,
+          functionId: "agent",
+          metadata: {
+            langfuseTraceId: trace.id,
+          },
+        },
         onFinish: async ({ response }) => {
           const responseMessages = response.messages ?? [];
           const updatedMessages = appendResponseMessages({
@@ -93,6 +113,7 @@ export async function POST(request: Request) {
             }
           }
 
+          await langfuse.flushAsync();
           await upsertChat({
             userId,
             chatId: currentChatId,
