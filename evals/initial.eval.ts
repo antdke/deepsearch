@@ -10,7 +10,7 @@ evalite("Deep Search Eval", {
           {
             id: "1",
             role: "user",
-            content: "What is the latest version of TypeScript?",
+            content: "What is the latest news on the Lakers?",
           },
         ],
       },
@@ -19,7 +19,7 @@ evalite("Deep Search Eval", {
           {
             id: "2",
             role: "user",
-            content: "What are the main features of Next.js 15?",
+            content: "Search for the latest stock market news.",
           },
         ],
       },

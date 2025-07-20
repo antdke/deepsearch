@@ -107,9 +107,18 @@ export async function askDeepSearch(messages: Message[]) {
     messages,
     onFinish: () => {},
     telemetry: { isEnabled: false },
-    isTest: true, // Add this
+    isTest: true,
   });
 
-  // Consume the stream - without this, the stream will never finish
-  return result.text;
+  const reader = result.textStream.getReader();
+  let fullText = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    fullText += value;
+    // Optional: console.log('Chunk:', value); // For debugging progress
+  }
+
+  return fullText;
 }
