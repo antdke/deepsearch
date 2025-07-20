@@ -116,6 +116,104 @@ ESLint 9 Support: Added support for ESLint 9.
 Development and Build Performance: Improved build times and Faster Fast Refresh.
 `,
       },
+      // New simple questions about LeBron James (requiring recent NBA knowledge)
+      // User: Fill in the 'expected' with the current ground truth based on your expertise
+      {
+        input: [
+          {
+            id: "nba1",
+            role: "user",
+            content:
+              "What is LeBron James' current points per game average in the 2024-2025 NBA season?",
+          },
+        ],
+        expected: "24.4 points per game",
+      },
+      {
+        input: [
+          {
+            id: "nba2",
+            role: "user",
+            content:
+              "Did LeBron James participate in the 2024 NBA All-Star Game, and what was his performance?",
+          },
+        ],
+        expected:
+          "Yes, LeBron James participated in the 2024 NBA All-Star Game, and he scored 8 points.",
+      },
+      {
+        input: [
+          {
+            id: "nba3",
+            role: "user",
+            content:
+              "How many games has LeBron James missed due to injury in the 2024-2025 season so far?",
+          },
+        ],
+        expected:
+          "LeBron James missed a total of 31 games due to injury during the 2024-2025 season.",
+      },
+      {
+        input: [
+          {
+            id: "nba4",
+            role: "user",
+            content:
+              "What is the latest milestone LeBron James achieved in 2024?",
+          },
+        ],
+        expected:
+          "LeBron James became the first player in NBA history to play in his teens, 20s, 30s, and 40s. And he hit the milestone of 50,000 career points (regular season and playoffs combined) in 2025.",
+      },
+
+      // New multi-hop questions about LeBron James (requiring combining info from multiple sources/seasons/games)
+      // These test multi-step reasoning, like comparing stats or combining historical and recent data
+      // User: Fill in the 'expected' with the current ground truth
+      // {
+      //   input: [
+      //     {
+      //       id: "nba5",
+      //       role: "user",
+      //       content:
+      //         "Compare LeBron James' scoring average in the 2024 playoffs to his average in the 2023 playoffs. What was the difference, and which teams did the Lakers face in those playoffs?",
+      //     },
+      //   ],
+      //   expected:
+      //     "[FILL IN GROUND TRUTH HERE, e.g., 'In 2024, LeBron averaged X PPG (vs Y in 2023, difference of Z). Lakers faced A, B in 2024 and C, D in 2023.']",
+      // },
+      // {
+      //   input: [
+      //     {
+      //       id: "nba6",
+      //       role: "user",
+      //       content:
+      //         "Which of LeBron James' current Lakers teammates has the most assists per game in 2024, and how does that compare to LeBron's assists per game? Who led the team in assists during LeBron's first season with the Lakers?",
+      //     },
+      //   ],
+      //   expected: "[FILL IN GROUND TRUTH HERE]",
+      // },
+      // {
+      //   input: [
+      //     {
+      //       id: "nba7",
+      //       role: "user",
+      //       content:
+      //         "How many NBA championships has LeBron James won, and for each, what was his points per game average in those Finals series? How does his most recent championship PPG compare to his first?",
+      //     },
+      //   ],
+      //   expected: "[FILL IN GROUND TRUTH HERE]",
+      // },
+      // {
+      //   input: [
+      //     {
+      //       id: "nba8",
+      //       role: "user",
+      //       content:
+      //         "What is LeBron James' all-time ranking in career points, and how many points does he need to reach the next milestone (e.g., 45,000 points)? Compare this to his points total at the end of the 2023 season.",
+      //     },
+      //   ],
+      //   expected: "[FILL IN GROUND TRUTH HERE]",
+      // },
     ];
   },
   task: async (input) => {
