@@ -37,15 +37,38 @@ export async function POST(request: Request) {
   }: { messages: Message[]; chatId: string; isNewChat?: boolean } =
     await request.json();
 
+  const trace = langfuse.trace({
+    name: "chat",
+    userId: session.user.id,
+  });
+
+  let currentChatId = chatId;
+
+  trace.update({
+    sessionId: currentChatId,
+  });
+
   if (!isAdmin) {
+    const countSpan = trace.span({
+      name: "get-request-count-today",
+      input: { userId },
+    });
     const count = await getRequestCountToday(userId);
+    countSpan.end({
+      output: { count },
+    });
     const LIMIT = 1;
     if (count >= LIMIT) {
       return new Response("Too Many Requests", { status: 429 });
     }
   }
 
+  const insertSpan = trace.span({
+    name: "insert-request",
+    input: { userId },
+  });
   await insertRequest(userId);
+  insertSpan.end({});
 
   const scrapePages = cacheWithRedis(
     "scrapePages",
@@ -54,19 +77,18 @@ export async function POST(request: Request) {
     },
   );
 
-  let currentChatId = chatId;
-  const trace = langfuse.trace({
-    sessionId: currentChatId,
-    name: "chat",
-    userId: session.user.id,
-  });
   let title = "New Chat";
 
   if (isNewChat) {
     const userMessageContent =
       messages.find((m) => m.role === "user")?.content ?? "New Chat";
     title = userMessageContent.slice(0, 100);
+    const upsertNewSpan = trace.span({
+      name: "upsert-new-chat",
+      input: { userId, chatId: currentChatId, title, messages },
+    });
     await upsertChat({ userId, chatId: currentChatId, title, messages });
+    upsertNewSpan.end({});
   }
 
   return createDataStreamResponse({
@@ -131,19 +153,36 @@ The current date is ${currentDate}. When the user asks for up-to-date informatio
           });
 
           if (!isNewChat) {
+            const getSpan = trace.span({
+              name: "get-existing-chat",
+              input: { chatId: currentChatId, userId },
+            });
             const existingChat = await getChat(currentChatId, userId);
+            getSpan.end({
+              output: existingChat,
+            });
             if (existingChat) {
               title = existingChat.title ?? "Chat With AI";
             }
           }
 
           await langfuse.flushAsync();
+          const upsertSpan = trace.span({
+            name: "upsert-chat-messages",
+            input: {
+              userId,
+              chatId: currentChatId,
+              title,
+              messages: updatedMessages,
+            },
+          });
           await upsertChat({
             userId,
             chatId: currentChatId,
             title,
             messages: updatedMessages,
           });
+          upsertSpan.end({});
         },
       });
 
