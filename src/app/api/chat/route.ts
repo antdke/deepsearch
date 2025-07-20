@@ -15,6 +15,9 @@ import { env } from "~/env";
 import { bulkCrawlWebsites, type BulkCrawlResponse } from "~/scraper";
 import { cacheWithRedis } from "~/server/redis/redis";
 import { streamFromDeepSearch } from "~/deep-search";
+import { setTimeout } from "node:timers/promises";
+import { checkRateLimit, recordRateLimit } from "~/server/rate-limit";
+import type { RateLimitConfig } from "~/server/rate-limit";
 
 export const maxDuration = 60;
 
@@ -73,6 +76,28 @@ export async function POST(request: Request) {
   });
   await insertRequest(userId);
   insertSpan.end({});
+
+  const config: RateLimitConfig = {
+    maxRequests: 1,
+    windowMs: 5_000,
+    keyPrefix: "global",
+  };
+
+  let rateLimitCheck = await checkRateLimit(config);
+
+  while (!rateLimitCheck.allowed) {
+    console.log("Rate limit exceeded, waiting...");
+    const waitTime = rateLimitCheck.resetTime - Date.now();
+    if (waitTime > 0) {
+      await setTimeout(waitTime);
+    }
+    rateLimitCheck = await checkRateLimit(config);
+  }
+
+  await recordRateLimit({
+    windowMs: config.windowMs,
+    keyPrefix: config.keyPrefix,
+  });
 
   let title = "New Chat";
 
