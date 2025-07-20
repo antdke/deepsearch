@@ -1,16 +1,20 @@
 import type { Message } from "ai";
-import { streamText, createDataStreamResponse } from "ai";
+import {
+  streamText,
+  createDataStreamResponse,
+  appendResponseMessages,
+} from "ai";
 import { auth } from "~/server/auth";
 import { model } from "~/models";
 import { z } from "zod";
 import { searchSerper } from "~/serper";
 import { getRequestCountToday, insertRequest } from "~/server/db/queries";
-import { appendResponseMessages } from "ai";
 import { upsertChat, getChat } from "~/server/db/queries";
 import { Langfuse } from "langfuse";
 import { env } from "~/env";
 import { bulkCrawlWebsites, type BulkCrawlResponse } from "~/scraper";
 import { cacheWithRedis } from "~/server/redis/redis";
+import { streamFromDeepSearch } from "~/deep-search";
 
 export const maxDuration = 60;
 
@@ -70,13 +74,6 @@ export async function POST(request: Request) {
   await insertRequest(userId);
   insertSpan.end({});
 
-  const scrapePages = cacheWithRedis(
-    "scrapePages",
-    async (urls: string[]): Promise<BulkCrawlResponse> => {
-      return bulkCrawlWebsites({ urls });
-    },
-  );
-
   let title = "New Chat";
 
   if (isNewChat) {
@@ -99,52 +96,9 @@ export async function POST(request: Request) {
           chatId: currentChatId,
         });
       }
-      const currentDate = new Date().toISOString().split("T")[0];
 
-      const result = streamText({
-        model,
+      const result = streamFromDeepSearch({
         messages,
-        system: `You are a helpful AI assistant with access to a 'searchWeb' tool that allows you to search the internet for up-to-date information. For every user query, first use the searchWeb tool to gather relevant information. Then, ALWAYS use the 'scrapePages' tool to scrape the full content from multiple relevant URLs returned by the search (THIS IS IMPORTANT). Formulate your response based on the scraped content and search results. Always cite your sources using inline markdown links, like [source](link). Provide accurate and helpful answers.
-
-The current date is ${currentDate}. When the user asks for up-to-date information, incorporate this date into your search queries to ensure timeliness. For example, if asking about recent events, include the year or date in the query.`,
-        tools: {
-          searchWeb: {
-            parameters: z.object({
-              query: z.string().describe("The query to search the web for"),
-            }),
-            execute: async ({ query }, { abortSignal }) => {
-              const results = await searchSerper(
-                { q: query, num: 10 },
-                abortSignal,
-              );
-
-              return results.organic.map((result) => ({
-                title: result.title,
-                link: result.link,
-                snippet: result.snippet,
-                date: result.date ?? "unknown",
-              }));
-            },
-          },
-          scrapePages: {
-            parameters: z.object({
-              urls: z.array(
-                z.string().describe("The URLs to scrape for full content"),
-              ),
-            }),
-            execute: async ({ urls }) => {
-              return scrapePages(urls);
-            },
-          },
-        },
-        maxSteps: 10,
-        experimental_telemetry: {
-          isEnabled: true,
-          functionId: "agent",
-          metadata: {
-            langfuseTraceId: trace.id,
-          },
-        },
         onFinish: async ({ response }) => {
           const responseMessages = response.messages ?? [];
           const updatedMessages = appendResponseMessages({
@@ -183,6 +137,13 @@ The current date is ${currentDate}. When the user asks for up-to-date informatio
             messages: updatedMessages,
           });
           upsertSpan.end({});
+        },
+        telemetry: {
+          isEnabled: true,
+          functionId: "agent",
+          metadata: {
+            langfuseTraceId: trace.id,
+          },
         },
       });
 
