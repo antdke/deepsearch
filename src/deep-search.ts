@@ -1,5 +1,6 @@
 import type { Message, Tool, ToolExecutionOptions } from "ai";
 import { streamText } from "ai";
+import type { StreamTextResult } from "ai";
 
 import { model } from "~/models";
 import { z } from "zod";
@@ -20,6 +21,21 @@ export const streamFromDeepSearch = (opts: {
   isTest?: boolean; // Add this
 }) => {
   const isTest = opts.isTest ?? false;
+
+  if (isTest) {
+    const mockText =
+      "Mock answer with [source](https://mock.com) based on test data.";
+    return {
+      textStream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(mockText);
+          controller.close();
+        },
+      }),
+      text: Promise.resolve(mockText),
+    } as unknown as StreamTextResult<any, any>;
+  }
+
   const currentDate = new Date().toISOString().split("T")[0] ?? "unknown";
 
   const scrapePages = cacheWithRedis(
@@ -107,8 +123,10 @@ export async function askDeepSearch(messages: Message[]) {
     messages,
     onFinish: () => {},
     telemetry: { isEnabled: false },
-    isTest: true,
+    isTest: false, // Change to false for real model in evals
   });
+
+  console.log("Starting stream consumption...");
 
   const reader = result.textStream.getReader();
   let fullText = "";
@@ -116,9 +134,11 @@ export async function askDeepSearch(messages: Message[]) {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    console.log("Chunk received:", value);
     fullText += value;
-    // Optional: console.log('Chunk:', value); // For debugging progress
   }
+
+  console.log("Full text:", fullText);
 
   return fullText;
 }

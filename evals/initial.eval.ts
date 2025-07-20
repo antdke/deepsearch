@@ -34,7 +34,6 @@ evalite("Deep Search Eval", {
       description: "Checks if the output contains any markdown links.",
       scorer: ({ output }) => {
         const containsLinks = /\[.*?\]\(https?:\/\/.*?\)/.test(output);
-
         return containsLinks ? 1 : 0;
       },
     },
